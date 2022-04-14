@@ -4,4 +4,5 @@ COPY . ml/
 RUN pip install psycopg2-binary
 RUN pip install pandas
 RUN pip install sqlalchemy
-CMD python ml/read.py
+RUN pip install sklearn
+CMD python ml/ml-process.py

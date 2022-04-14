@@ -192,7 +192,7 @@ def load(data):
     loadCounter = 0
 
     # --- Testing only ---
-    testCounter = 0
+    #testCounter = 0
 
     # Iterate through each row and insert to the database
     for index, row in data.iterrows():
@@ -215,9 +215,9 @@ def load(data):
             connection.rollback()
 
         # --- Testing only ---
-        testCounter = testCounter+1
-        if testCounter == 1000:
-            break
+        #testCounter = testCounter+1
+        #if testCounter == 1000:
+        #    break
 
     # Close database connection
     connection.close()
