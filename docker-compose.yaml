@@ -35,5 +35,14 @@ services:
       - etl
     links:
       - db
+  visualization:
+    build: visualization
+    ports:
+      - "8080:80"
+    restart: on-failure
+    depends_on:
+      - db
+    links:
+      - db
 volumes:
   postgres-data:
