@@ -21,7 +21,7 @@ def createTable():
     # Create table to store the temperatures data and loading status information
     sql = """
         create table IF NOT EXISTS temperatures (region varchar(50), country varchar(30), city varchar(50), quarter int, date date, avgtemp decimal );
-        create table IF NOT EXISTS status (id SERIAL, status varchar(30), timestamp timestamp, lastloaded date );
+        create table IF NOT EXISTS status (id SERIAL, status int, message varchar(30), timestamp timestamp, lastloaded date );
         """
     
     # Execute the SQL statement + commit or rollback
@@ -34,7 +34,7 @@ def createTable():
     # Close connection
     connection.close()
 
-def logStatus(status, lastLoaded=""):
+def logStatus(status, message, lastLoaded=""):
     '''
     Log status information about the ETL process
     '''
@@ -47,9 +47,9 @@ def logStatus(status, lastLoaded=""):
     
     # Insert status info to the database
     if lastLoaded != "":
-        sql = f"INSERT INTO status (status, timestamp, lastloaded) VALUES ('{status}', '{now}', '{lastLoaded}');"
+        sql = f"INSERT INTO status (status, message, timestamp, lastloaded) VALUES ('{status}', '{message}', '{now}', '{lastLoaded}');"
     else: # if no data was loaded yet, lastLoaded is not added to the database
-        sql = f"INSERT INTO status (status, timestamp) VALUES ('{status}', '{now}');"
+        sql = f"INSERT INTO status (status, message, timestamp) VALUES ('{status}', '{message}', '{now}');"
     
     # Execute the SQL statement + commit or rollback
     try:
@@ -87,7 +87,7 @@ def extract():
     ''''
     Task to extract the source data from 2 parts of the file city_temperature.csv
     '''
-    logStatus("Extraction started")
+    logStatus(1, "Extraction started")
 
     # Set dataframe datatypes
     dtype={ "Region": "string", 
@@ -110,7 +110,7 @@ def extract():
     # Join both parts in the same data frame
     data = pandas.concat([data1, data2])
 
-    logStatus("Extraction completed")
+    logStatus(1, "Extraction completed")
 
     return data
 
@@ -120,7 +120,7 @@ def transform(data):
     ''''
     Task to transform the data
     '''
-    logStatus("Transformation started")
+    logStatus(1, "Transformation started")
 
     # Remove -99 temperatures as it indicates data is not available
     data = data.drop(data[data.AvgTemperature == -99].index)
@@ -161,7 +161,7 @@ def transform(data):
     # Sort data by Date
     data = data.sort_values(by="Date")
 
-    logStatus("Transformation completed")
+    logStatus(1, "Transformation completed")
 
     # Return transformed data
     return data
@@ -172,7 +172,7 @@ def load(data):
     ''''
     Task to load the processed data into the database
     '''
-    logStatus("Loading started")
+    logStatus(1, "Loading started")
 
     # Get last loaded timestamp
     lastLoaded = str(getLastDateLoaded())
@@ -222,8 +222,13 @@ def load(data):
     # Close database connection
     connection.close()
 
-    logStatus("Loading completed")
-    logStatus(f"Loaded {loadCounter} rows", lastLoaded)
+    logStatus(1, "Loading completed")
+
+    # If nothing was loaded, last loaded date won't be logged
+    if loadCounter == 0:
+        lastLoaded = ''
+    
+    logStatus(2, f"Loaded {loadCounter} rows", lastLoaded)
     
     return "--- Process successfully completed! ---"
 

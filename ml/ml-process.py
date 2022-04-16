@@ -35,8 +35,58 @@ def createTable():
     # Close connection
     connection.close()
 
+def logStatus(status, message):
+    '''
+    Log status information about the ML process
+    '''
+    # Get time now
+    now = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
+
+    # Open connection to the database
+    connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
+    mycursor = connection.cursor()
+    
+    # Insert status info to the database
+    sql = f"INSERT INTO status (status, message, timestamp) VALUES ('{status}', '{message}', '{now}');"
+    
+    # Execute the SQL statement + commit or rollback
+    try:
+        mycursor.execute(sql)
+        connection.commit()
+    except:
+        connection.rollback()
+    
+    # Close connection
+    connection.close()
+
+def checkStatus():
+    ''''
+    Get last status logged
+    '''
+    # Open connection to the database
+    connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
+    cursor = connection.cursor()
+    
+    # Get the date of the last temperature loaded
+    cursor.execute("select status from status order by id desc limit 1;")
+    lastStatus = cursor.fetchone()[0]
+    connection.close()
+    
+    # If it's the first run, set a initial date
+    if lastStatus == 2:
+        return False
+    else:
+        return True
+    
 @task(max_retries=3, retry_delay=timedelta(seconds=1))
 def extract():
+    
+    # Wait for ETL process to complete
+    while (checkStatus()):
+        print("Not ready -- wait ...")
+        time.sleep(120)
+
+    logStatus(3, "ML process started")
     # Get the average temperature for each city per quarter
     #connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
     #cursor = connection.cursor()
@@ -109,7 +159,7 @@ def load(data):
     for index, row in data.iterrows():
         # Prepare SQL query to INSERT a record into the database.
         sql = "INSERT INTO temperature_level (region, country, city, quarter, avgtemp, templevel) VALUES ('%s', '%s', '%s', '%s', '%s', '%s');" % (row[0], row[1], row[2], row[3], row[4], row[5])
-        print(sql)
+        #print(sql)
         # Execute SQL statement + commit or rollback
         try:
             mycursor.execute(sql)
@@ -122,7 +172,7 @@ def load(data):
 
     #logStatus("Loading completed")
     #logStatus(f"Loaded {loadCounter} rows", lastLoaded)
-    
+    logStatus(4, "ML process completed")
     return "--- Process successfully completed! ---"
 
 def main():
