@@ -1,12 +1,12 @@
-from datetime import date, timedelta, datetime
-import time
+from datetime import timedelta, datetime
 from dateutil.relativedelta import relativedelta
-from prefect import task, Flow, Parameter
+from prefect import task, Flow
 from prefect.schedules import IntervalSchedule
 from prefect.executors import LocalDaskExecutor #DaskExecutor
 import psycopg2
 import pandas
 import dbconfig
+import dbstatus
 
 def createTable():
     '''
@@ -23,33 +23,6 @@ def createTable():
         create table IF NOT EXISTS temperatures (region varchar(50), country varchar(30), city varchar(50), quarter int, date date, avgtemp decimal );
         create table IF NOT EXISTS status (id SERIAL, status int, message varchar(30), timestamp timestamp, lastloaded date );
         """
-    
-    # Execute the SQL statement + commit or rollback
-    try:
-        mycursor.execute(sql)
-        connection.commit()
-    except:
-        connection.rollback()
-    
-    # Close connection
-    connection.close()
-
-def logStatus(status, message, lastLoaded=""):
-    '''
-    Log status information about the ETL process
-    '''
-    # Get time now
-    now = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-
-    # Open connection to the database
-    connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
-    mycursor = connection.cursor()
-    
-    # Insert status info to the database
-    if lastLoaded != "":
-        sql = f"INSERT INTO status (status, message, timestamp, lastloaded) VALUES ('{status}', '{message}', '{now}', '{lastLoaded}');"
-    else: # if no data was loaded yet, lastLoaded is not added to the database
-        sql = f"INSERT INTO status (status, message, timestamp) VALUES ('{status}', '{message}', '{now}');"
     
     # Execute the SQL statement + commit or rollback
     try:
@@ -87,7 +60,7 @@ def extract():
     ''''
     Task to extract the source data from 2 parts of the file city_temperature.csv
     '''
-    logStatus(1, "Extraction started")
+    dbstatus.logStatus(1, "ETL - Extraction started")
 
     # Set dataframe datatypes
     dtype={ "Region": "string", 
@@ -110,17 +83,16 @@ def extract():
     # Join both parts in the same data frame
     data = pandas.concat([data1, data2])
 
-    logStatus(1, "Extraction completed")
+    dbstatus.logStatus(1, "ETL - Extraction completed")
 
     return data
-
 
 @task
 def transform(data):
     ''''
     Task to transform the data
     '''
-    logStatus(1, "Transformation started")
+    dbstatus.logStatus(1, "ETL - Transformation started")
 
     # Remove -99 temperatures as it indicates data is not available
     data = data.drop(data[data.AvgTemperature == -99].index)
@@ -161,18 +133,17 @@ def transform(data):
     # Sort data by Date
     data = data.sort_values(by="Date")
 
-    logStatus(1, "Transformation completed")
+    dbstatus.logStatus(1, "ETL - Transformation completed")
 
     # Return transformed data
     return data
-
 
 @task
 def load(data):
     ''''
     Task to load the processed data into the database
     '''
-    logStatus(1, "Loading started")
+    dbstatus.logStatus(1, "ETL - Loading started")
 
     # Get last loaded timestamp
     lastLoaded = str(getLastDateLoaded())
@@ -190,9 +161,6 @@ def load(data):
 
     # Add counter to log number of rows loaded
     loadCounter = 0
-
-    # --- Testing only ---
-    #testCounter = 0
 
     # Iterate through each row and insert to the database
     for index, row in data.iterrows():
@@ -214,21 +182,16 @@ def load(data):
         except:
             connection.rollback()
 
-        # --- Testing only ---
-        #testCounter = testCounter+1
-        #if testCounter == 1000:
-        #    break
-
     # Close database connection
     connection.close()
 
-    logStatus(1, "Loading completed")
+    dbstatus.logStatus(1, "ETL - Loading completed")
 
     # If nothing was loaded, last loaded date won't be logged
     if loadCounter == 0:
         lastLoaded = ''
     
-    logStatus(2, f"Loaded {loadCounter} rows", lastLoaded)
+    dbstatus.logStatus(2, f"ETL - Loaded {loadCounter} rows", lastLoaded)
     
     return "--- Process successfully completed! ---"
 
@@ -244,8 +207,7 @@ def main():
     with Flow("etl", schedule=schedule) as flow:
         data = extract()
         data = transform(data)
-        result = load(data)
-        print(result)
+        load(data)
 
     # Create database tables - if not already created
     createTable()

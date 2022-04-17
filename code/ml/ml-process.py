@@ -1,7 +1,6 @@
-from datetime import date, timedelta, datetime
+from datetime import timedelta, datetime
 import time
-from dateutil.relativedelta import relativedelta
-from prefect import task, Flow, Parameter
+from prefect import task, Flow
 from prefect.schedules import IntervalSchedule
 from prefect.executors import LocalDaskExecutor #DaskExecutor
 import psycopg2
@@ -9,17 +8,18 @@ import pandas
 from sklearn.cluster import KMeans
 import dbconfig
 from sqlalchemy import create_engine
-   
+import dbstatus
+
 def createTable():
     '''
-    Create the initial tables required by the ML process
+    Create the tables required by the ML process
         - temperature_level to store cluster results
     '''
     # Open connection to the database
     connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
     mycursor = connection.cursor()
     
-    # Create table to store the temperatures data and delete any previous data
+    # Create table to store the temperature level data and delete any previous data
     sql = """
         create table IF NOT EXISTS temperature_level (region varchar(50), country varchar(30), city varchar(50), quarter int, avgtemp decimal, templevel varchar(10));
         delete from temperature_level;
@@ -34,73 +34,27 @@ def createTable():
     
     # Close connection
     connection.close()
-
-def logStatus(status, message):
-    '''
-    Log status information about the ML process
-    '''
-    # Get time now
-    now = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S')
-
-    # Open connection to the database
-    connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
-    mycursor = connection.cursor()
-    
-    # Insert status info to the database
-    sql = f"INSERT INTO status (status, message, timestamp) VALUES ('{status}', '{message}', '{now}');"
-    
-    # Execute the SQL statement + commit or rollback
-    try:
-        mycursor.execute(sql)
-        connection.commit()
-    except:
-        connection.rollback()
-    
-    # Close connection
-    connection.close()
-
-def checkStatus():
-    ''''
-    Get last status logged
-    '''
-    # Open connection to the database
-    connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
-    cursor = connection.cursor()
-    
-    # Get the date of the last temperature loaded
-    cursor.execute("select status from status order by id desc limit 1;")
-    lastStatus = cursor.fetchone()[0]
-    connection.close()
-    
-    # If it's the first run, set a initial date
-    if lastStatus == 2:
-        return False
-    else:
-        return True
     
 @task(max_retries=3, retry_delay=timedelta(seconds=1))
 def extract():
     
     # Wait for ETL process to complete
-    while (checkStatus()):
-        print("Not ready -- wait ...")
-        time.sleep(120)
+    while (dbstatus.checkStatus(2)):
+        print("Waiting for ETL to finish...")
+        time.sleep(60)
 
-    logStatus(3, "ML process started")
-    # Get the average temperature for each city per quarter
-    #connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
-    #cursor = connection.cursor()
+    dbstatus.logStatus(3, "ML - Process started")
 
-    alchemyEngine = create_engine('postgresql+psycopg2://etl:etl@db/db', pool_recycle=3600);
+    # Open connection to the database
+    alchemyEngine = create_engine(f'postgresql+psycopg2://{dbconfig.USER}:{dbconfig.PASSWORD}@{dbconfig.HOST}/{dbconfig.DBNAME}', pool_recycle=3600);
     connection = alchemyEngine.connect();
    
-    # Get the date of the last temperature loaded
+    # Get the average temperature for each city per quarter
     sql = """select region, country, city, quarter , round( avg(avgtemp),2) as avgtemp
     from temperatures
     group by region, country, city , quarter 
     order by region, country, city, quarter ;
     """
-    #data = pandas.read_sql(sql, connection)
     data = pandas.read_sql_query(sql,con=connection)
     
     # Close database connection
@@ -113,8 +67,8 @@ def createModel(data):
 
     # Set clusters based on temperature and quarter
     model = KMeans(n_clusters=5, random_state=42).fit(data.drop(columns=["region","country","city"]))
-    pred = model.labels_
-    data["cluster"] = pred
+    clusters = model.labels_
+    data["cluster"] = clusters
     
     return data
 
@@ -129,7 +83,7 @@ def transform(data):
     data[data.cluster==3]["avgtemp"].mean(),
     data[data.cluster==4]["avgtemp"].mean()]})
 
-    # Set temperature level for each cluster
+    # Set temperature level for each cluster sorted by temperature
     clusterMetadata = clusterMetadata.sort_values(by='avgtemp')
     clusterMetadata['templevel'] = ['Very Low','Low','Medium','High','Very High']
 
@@ -139,6 +93,7 @@ def transform(data):
         return str(level)
     data['templevel'] = data.apply(lambda x : setTempLevel(x['cluster']) , axis=1)
     data
+    
     # Remove cluster column
     data = data.drop(columns="cluster")
     
@@ -149,7 +104,6 @@ def load(data):
     ''''
     Task to load the processed data into the database
     '''
-    #logStatus("Loading started")
 
     # Connect to the database
     connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
@@ -159,7 +113,7 @@ def load(data):
     for index, row in data.iterrows():
         # Prepare SQL query to INSERT a record into the database.
         sql = "INSERT INTO temperature_level (region, country, city, quarter, avgtemp, templevel) VALUES ('%s', '%s', '%s', '%s', '%s', '%s');" % (row[0], row[1], row[2], row[3], row[4], row[5])
-        #print(sql)
+
         # Execute SQL statement + commit or rollback
         try:
             mycursor.execute(sql)
@@ -170,9 +124,7 @@ def load(data):
     # Close database connection
     connection.close()
 
-    #logStatus("Loading completed")
-    #logStatus(f"Loaded {loadCounter} rows", lastLoaded)
-    logStatus(4, "ML process completed")
+    dbstatus.logStatus(4, "ML - Process completed")
     return "--- Process successfully completed! ---"
 
 def main():
