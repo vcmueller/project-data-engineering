@@ -101,10 +101,10 @@ def extract():
 
     # Read both parts of the file
     data1 = pandas.read_csv(
-        "etl/data/city_temperature-1.csv", 
+        "etl/city_temperature-1.csv", 
         dtype=dtype)
     data2 = pandas.read_csv(
-        "etl/data/city_temperature-2.csv", 
+        "etl/city_temperature-2.csv", 
         dtype=dtype)
 
     # Join both parts in the same data frame

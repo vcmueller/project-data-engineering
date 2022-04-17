@@ -21,14 +21,18 @@ services:
         timeout: 10s
         retries: 5
   etl:
-    build: etl
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/etl.dockerfile
     restart: on-failure
     depends_on:
       - db
     links:
       - db
   ml:
-    build: ml
+    build: 
+      context: ./
+      dockerfile: ./dockerfiles/ml.dockerfile
     restart: on-failure
     depends_on:
       - db
@@ -36,7 +40,9 @@ services:
     links:
       - db
   visualization:
-    build: visualization
+    build: 
+      context: ./
+      dockerfile: ./dockerfiles/visualization.dockerfile
     ports:
       - "8080:80"
     restart: on-failure
