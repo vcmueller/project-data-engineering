@@ -38,12 +38,12 @@ def checkStatus(criteria):
     connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
     cursor = connection.cursor()
     
-    # Get the date of the last temperature loaded
+    # Get the date of the last row loaded
     cursor.execute("select status from status order by id desc limit 1;")
     lastStatus = cursor.fetchone()[0]
     connection.close()
     
-    # If it's the first run, set a initial date
+    # If it's the first run, set an initial date
     if lastStatus == criteria:
         return False
     else:

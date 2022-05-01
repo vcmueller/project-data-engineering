@@ -2,7 +2,7 @@ from datetime import timedelta, datetime
 import time
 from prefect import task, Flow
 from prefect.schedules import IntervalSchedule
-from prefect.executors import LocalDaskExecutor #DaskExecutor
+from prefect.executors import LocalDaskExecutor
 import psycopg2
 import pandas
 from sklearn.cluster import KMeans
@@ -37,13 +37,16 @@ def createTable():
     
 @task(max_retries=3, retry_delay=timedelta(seconds=1))
 def extract():
-    
+    '''
+    Extract data from temperatures table created by the ETL process
+    '''
     # Wait for ETL process to complete
     while (dbstatus.checkStatus(2)):
         print("Waiting for ETL to finish...")
         time.sleep(60)
 
-    dbstatus.logStatus(3, "ML - Process started")
+    # Log status message
+    dbstatus.logStatus(3, "ML 1/2 - Process started")
 
     # Open connection to the database
     alchemyEngine = create_engine(f'postgresql+psycopg2://{dbconfig.USER}:{dbconfig.PASSWORD}@{dbconfig.HOST}/{dbconfig.DBNAME}', pool_recycle=3600);
@@ -60,28 +63,42 @@ def extract():
     # Close database connection
     connection.close()
 
+    # Return queried data
     return data
 
 @task
 def createModel(data):
-
+    '''
+    Run KMeans to clusterize the data into 5 categories based on their temperature per quarter
+    '''
     # Set clusters based on temperature and quarter
     model = KMeans(n_clusters=5, random_state=42).fit(data.drop(columns=["region","country","city"]))
     clusters = model.labels_
+
+    # Add clusters to the data frame as a new column
     data["cluster"] = clusters
     
+    # Return the data with the cluster information
     return data
 
 @task
 def transform(data):
+    ''''
+    Transform the clusterized data by 
+    - calculating average temperatures
+    - setting cluster names based on how low or high the average is
+    '''
+
     # Get average temperature per cluster
     clusterMetadata = pandas.DataFrame({
         "cluster": [0,1,2,3,4],
-        "avgtemp":[data[data.cluster==0]["avgtemp"].mean(),
-    data[data.cluster==1]["avgtemp"].mean(),
-    data[data.cluster==2]["avgtemp"].mean(),
-    data[data.cluster==3]["avgtemp"].mean(),
-    data[data.cluster==4]["avgtemp"].mean()]})
+        "avgtemp":
+            [data[data.cluster==0]["avgtemp"].mean(),
+            data[data.cluster==1]["avgtemp"].mean(),
+            data[data.cluster==2]["avgtemp"].mean(),
+            data[data.cluster==3]["avgtemp"].mean(),
+            data[data.cluster==4]["avgtemp"].mean()]
+            })
 
     # Set temperature level for each cluster sorted by temperature
     clusterMetadata = clusterMetadata.sort_values(by='avgtemp')
@@ -92,11 +109,11 @@ def transform(data):
         level = clusterMetadata[clusterMetadata.cluster == cluster]['templevel'].iloc[0]
         return str(level)
     data['templevel'] = data.apply(lambda x : setTempLevel(x['cluster']) , axis=1)
-    data
     
     # Remove cluster column
     data = data.drop(columns="cluster")
     
+    # Return transformed clusterized data
     return data
 
 @task
@@ -124,15 +141,21 @@ def load(data):
     # Close database connection
     connection.close()
 
-    dbstatus.logStatus(4, "ML - Process completed")
+    # Log status message
+    dbstatus.logStatus(4, "ML 2/2 - Process completed")
+
     return "--- Process successfully completed! ---"
 
 def main():
-    
+    '''Set Prefect flow and execute schedule
+    NOTE: Schedule can be toggled between test mode and production mode
+    Test mode runs every 15 min while production mode runs every quarter
+    '''
     # Set Prefect scheduler to run every month
     schedule = IntervalSchedule(
         start_date=datetime.utcnow() + timedelta(seconds=1),
-        interval=timedelta(minutes=600),
+        interval=timedelta(minutes=15) # Test mode
+        #interval=timedelta(days=90) # Production mode
     )
 
     # Configure Prefect flow
@@ -140,14 +163,13 @@ def main():
         data = extract()
         data = createModel(data)
         data = transform(data)
-        result = load(data)
-        print(result)
+        load(data)
 
     # Create database tables - if not already created
     createTable()
 
     # Execute ETL flow
-    flow.run(executor=LocalDaskExecutor())#DaskExecutor())
+    flow.run(executor=LocalDaskExecutor())
 
 if __name__ == "__main__":
     main()

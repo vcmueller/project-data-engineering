@@ -1,7 +1,7 @@
 version: "3.9"
 services:
   db:
-    image: "postgres"
+    image: "postgres:bullseye"
     hostname: db
     ports:
       - "5432:5432"
@@ -48,6 +48,8 @@ services:
     restart: on-failure
     depends_on:
       - db
+      - etl
+      - ml
     links:
       - db
 volumes:

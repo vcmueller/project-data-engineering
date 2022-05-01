@@ -2,7 +2,7 @@ from datetime import timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from prefect import task, Flow
 from prefect.schedules import IntervalSchedule
-from prefect.executors import LocalDaskExecutor #DaskExecutor
+from prefect.executors import LocalDaskExecutor
 import psycopg2
 import pandas
 import dbconfig
@@ -12,16 +12,16 @@ def createTable():
     '''
     Create the initial tables required by the ETL process
         - temperatures table to store the main data
-        - status table to store process status and log
+        - status table to store process status
     '''
     # Open connection to the database
     connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
     mycursor = connection.cursor()
     
-    # Create table to store the temperatures data and loading status information
+    # Create table to store the temperatures data and status information
     sql = """
         create table IF NOT EXISTS temperatures (region varchar(50), country varchar(30), city varchar(50), quarter int, date date, avgtemp decimal );
-        create table IF NOT EXISTS status (id SERIAL, status int, message varchar(30), timestamp timestamp, lastloaded date );
+        create table IF NOT EXISTS status (id SERIAL, status int, message varchar(40), timestamp timestamp, lastloaded date );
         """
     
     # Execute the SQL statement + commit or rollback
@@ -36,7 +36,7 @@ def createTable():
 
 def getLastDateLoaded():
     ''''
-    Get the date of the last loaded temperature
+    Get the date of the last loaded temperature and clean incomplete loads
     '''
     # Open connection to the database
     connection = psycopg2.connect(f"host='{dbconfig.HOST}' dbname='{dbconfig.DBNAME}' user='{dbconfig.USER}' password='{dbconfig.PASSWORD}'")
@@ -46,13 +46,20 @@ def getLastDateLoaded():
     cursor.execute("SELECT MAX(lastloaded) as lastloaded FROM status;")
     lastLoaded = cursor.fetchone()[0]
 
-    # If it's the first run, set a initial date
+    # If it's the first run, set an initial date and remove any incomplete loads from temperatures table
     if lastLoaded is None:
         lastLoaded = '1970-01-01'
+        # Execute the SQL statement + commit or rollback
+        try:
+            cursor.execute("delete from temperatures;")
+            connection.commit()
+        except:
+            connection.rollback()
     
     # Close database connection
     connection.close()
 
+    # Return last loaded date
     return lastLoaded
 
 @task(max_retries=3, retry_delay=timedelta(seconds=1))
@@ -60,7 +67,8 @@ def extract():
     ''''
     Task to extract the source data from 2 parts of the file city_temperature.csv
     '''
-    dbstatus.logStatus(1, "ETL - Extraction started")
+    # Log status message
+    dbstatus.logStatus(1, "ETL 1/7 - Extraction started")
 
     # Set dataframe datatypes
     dtype={ "Region": "string", 
@@ -83,16 +91,19 @@ def extract():
     # Join both parts in the same data frame
     data = pandas.concat([data1, data2])
 
-    dbstatus.logStatus(1, "ETL - Extraction completed")
+    # Log status message
+    dbstatus.logStatus(1, "ETL 2/7 - Extraction completed")
 
+    # Return data from source
     return data
 
 @task
 def transform(data):
     ''''
-    Task to transform the data
+    Task to transform the source data
     '''
-    dbstatus.logStatus(1, "ETL - Transformation started")
+    # Log status message
+    dbstatus.logStatus(1, "ETL 3/7 - Transformation started")
 
     # Remove -99 temperatures as it indicates data is not available
     data = data.drop(data[data.AvgTemperature == -99].index)
@@ -133,7 +144,8 @@ def transform(data):
     # Sort data by Date
     data = data.sort_values(by="Date")
 
-    dbstatus.logStatus(1, "ETL - Transformation completed")
+    # Log status message
+    dbstatus.logStatus(1, "ETL 4/7 - Transformation completed")
 
     # Return transformed data
     return data
@@ -143,7 +155,8 @@ def load(data):
     ''''
     Task to load the processed data into the database
     '''
-    dbstatus.logStatus(1, "ETL - Loading started")
+    # Log status message
+    dbstatus.logStatus(1, "ETL 5/7 - Loading started")
 
     # Get last loaded timestamp
     lastLoaded = str(getLastDateLoaded())
@@ -185,22 +198,29 @@ def load(data):
     # Close database connection
     connection.close()
 
-    dbstatus.logStatus(1, "ETL - Loading completed")
+    # Log status message
+    dbstatus.logStatus(1, "ETL 6/7 - Loading completed")
 
     # If nothing was loaded, last loaded date won't be logged
     if loadCounter == 0:
         lastLoaded = ''
     
-    dbstatus.logStatus(2, f"ETL - Loaded {loadCounter} rows", lastLoaded)
+    # Log status message
+    dbstatus.logStatus(2, f"ETL 7/7 - Loaded {loadCounter} rows", lastLoaded)
     
     return "--- Process successfully completed! ---"
 
 def main():
-
-    # Set Prefect scheduler to run every month
+    '''
+    Set Prefect flow and execute schedule
+    NOTE: Schedule can be toggled between test mode and production mode
+    Test mode runs every 15 min while production mode runs every month
+    '''
+    # Set Prefect scheduler
     schedule = IntervalSchedule(
         start_date=datetime.utcnow() + timedelta(seconds=1),
-        interval=timedelta(minutes=600),
+        interval=timedelta(minutes=15) # Test mode
+        #interval=timedelta(days=30)  # Production mode
     )
 
     # Configure Prefect flow
@@ -213,7 +233,7 @@ def main():
     createTable()
 
     # Execute ETL flow
-    flow.run(executor=LocalDaskExecutor())#DaskExecutor())
+    flow.run(executor=LocalDaskExecutor())
 
 if __name__ == "__main__":
     main()
