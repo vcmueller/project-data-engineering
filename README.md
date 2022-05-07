@@ -20,10 +20,10 @@ The application architecture is presented below:
 ### Architecture Implementation
 
 The application is implemented by deploying four docker containers:
-- ETL: Prefect is used to manage the data pipeline flow and execute the ETL tasks written in Python ([see code details here](code/etl/ETLInfo.md)). This job is scheduled to incrementally add new data by running every month.
+- ETL: Prefect is used to manage the data pipeline flow and execute the ETL tasks written in Python ([see code details here](code/etl)). This job is scheduled to incrementally add new data by running every month.
 - Database: PostgreSQL database is used with a docker named volume to persist data outside the container, with port 5432 exposed for external access.
-- ML: Prefect is used to manage the flow of extracting the processed data and running the Machine Learning model to clusterize the data, also written in Python ([see code details here](code/ml/MLInfo.md)). The process is scheduled to recreate the table every quarter.
-- Visualization: Prefect is used to manage the creation flow of the HTML pages containing the processed data from ETL and ML processes, also using Python and the Bokeh library ([see code details here](code/visualization/VisualizationInfo.md)). Nginx service is used to make the pages created available through port 80.
+- ML: Prefect is used to manage the flow of extracting the processed data and running the Machine Learning model to clusterize the data, also written in Python ([see code details here](code/ml)). The process is scheduled to recreate the table every quarter.
+- Visualization: Prefect is used to manage the creation flow of the HTML pages containing the processed data from ETL and ML processes, also using Python and the Bokeh library ([see code details here](code/visualization)). Nginx service is used to make the pages created available through port 80.
 
 ### Containers Integration
 
@@ -50,7 +50,7 @@ In order to successfully execute the application and verify the results, the fol
 
     (the containers execution status can be monitored via `docker ps`)
 
-5. Once the containers are initiated and running, open the link below in the browser:
+5. Once the containers are initiated and running, open the following link in the browser:
     `localhost:8080`
 
     ![Home Page](Images/HomePage.png?raw=true "Home Page")
@@ -59,7 +59,7 @@ In order to successfully execute the application and verify the results, the fol
 
     Note that it might take a few minutes until the jobs are completed, so it's recommended to refresh the pages for seeing updated information.
     The "Process Status" page should reflect the jobs execution details, so it can be used as a monitoring tool.
-    More information regarding the results displayed can be found [here](code/visualization/VisualizationInfo.md).
+    More information regarding the results displayed can be found [here](code/visualization).
 
 7. To stop the application, run the following docker-compose command:
     `docker-compose down`
