@@ -1,18 +1,67 @@
 # Project: Data Engineering
 
-## Conception Phase
+## Overview
 
-- The batch-processing data application will read data from a CSV file containing city temperatures, clean and transform it (remove nulls, convert units, aggregate) and incrementally load processed data to a PostgreSQL database.
-- Prefect will manage the data pipeline flow using Python to execute the ETL tasks, scheduled to run once a month.
-- Processed data in the database will be used in another Prefect process to build a Machine Learning model for clusterizing the data, outputting assigned clusters to a new table, scheduled to run once per quarter.
-- Bohek will be used to build visualizations, making them available via Nginx.
-- PostgreSQL will be accessible to other front-end machine learning applications.
-- Four Docker containers will be used to execute the complete flow, using Prefect, PostgreSQL and Nginx images from DockerHub, ensuring maintainability through open source, standarized and well documented tools. The possible deployment to a cluster allows parallelism making it scalable and also reliable by using isolated tasks with dependencies, error handling and docker volumes to persist the data.
-- Data security, governance and protection will be ensured via docker networks, only exposing the necessary ports, password-protected access to PostgreSQL, and the deployment of containers to a secure and private/cloud protected server.
+The project consists of a batch-processing data application for a data-intensive machine learning application that:
+- reads data from a set of CSV files containing daily temperature data for cities around the world ([city_temperature.csv](https://www.kaggle.com/datasets/sudalairajkumar/daily-temperature-of-major-cities?select=city_temperature.csv) from Kaggle) with 2.9 million rows
+- processes the source data by aggregating temperatures to a monthly average per city
+- incrementally loads the processed data a database
+- reads the processed data and adds a label to each record indicating the temperature level of each city on each quarter by using a KMeans Machine Learning model to clusterizes the data
+- loads the clusterized data to the database every quarter
+- presents the processed and clusterized data in HTML web pages
 
-### Application Architecture
 
-![Architecture](Architecture/Architecture.png?raw=true "Architecture")
+## Application Architecture
 
-- Details from data source: [source](https://academic.udayton.edu/kissock/http/Weather/source.htm)
-- Kaggle link: [city_temperature.csv](https://www.kaggle.com/datasets/sudalairajkumar/daily-temperature-of-major-cities?select=city_temperature.csv)
+The application architecture is presented below:
+
+![Architecture](Images/Architecture.png?raw=true "Architecture")
+
+### Architecture Implementation
+
+The application is implemented by deploying four docker containers:
+- ETL: Prefect is used to manage the data pipeline flow and execute the ETL tasks written in Python ([see code details here](code/etl/ETLInfo.md)). This job is scheduled to incrementally add new data by running every month.
+- Database: PostgreSQL database is used with a docker named volume to persist data outside the container, with port 5432 exposed for external access.
+- ML: Prefect is used to manage the flow of extracting the processed data and running the Machine Learning model to clusterize the data, also written in Python ([see code details here](code/ml/MLInfo.md)). The process is scheduled to recreate the table every quarter.
+- Visualization: Prefect is used to manage the creation flow of the HTML pages containing the processed data from ETL and ML processes, also using Python and the Bokeh library ([see code details here](code/visualization/VisualizationInfo.md)). Nginx service is used to make the pages created available through port 80.
+
+### Containers Integration
+
+The project deployment leaverages Infrastructure as Code via docker-compose with set dependencies for each container.
+- All containers depend on the successfully initialization of the database container and the ML job is only executed after the ETL job is done.
+- A status table is used to control the flow execution between containers.
+- A Docker network is set with the containers deployment, allowing the communication between containers.
+
+
+## How to Run
+
+In order to successfully execute the application and verify the results, the follow steps should be followed:
+1. Clone the GitHub repository by running the following command in the terminal/command line:
+    `git clone https://github.com/vcmueller/project-data-engineering.git`
+    
+2. Go into the cloned repository folder:
+    `cd project-data-engineering`
+
+3. Execute the docker-compose command below to build the docker images:
+    `docker-compose build`
+
+4. Execute the docker-compose command below to start the containers:
+    `docker-compose up -d`
+
+    (the containers execution status can be monitored via `docker ps`)
+
+5. Once the containers are initiated and running, open the link below in the browser:
+    `localhost:8080`
+
+    ![Home Page](Images/HomePage.png?raw=true "Home Page")
+
+6. The results can be verified by following the links within the webpage
+
+    Note that it might take a few minutes until the jobs are completed, so it's recommended to refresh the pages for seeing updated information.
+    The "Process Status" page should reflect the jobs execution details, so it can be used as a monitoring tool.
+    More information regarding the results displayed can be found [here](code/visualization/VisualizationInfo.md).
+
+7. To stop the application, run the following docker-compose command:
+    `docker-compose down`
+
+
