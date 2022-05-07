@@ -1,6 +1,6 @@
 # ETL Job Information
 
-The aim of this job is to extract the data from the source, execute a series of transformations so it's ready to be used by the ML job, then load it to the database.
+The aim of this job is to extract the data from the source, execute a series of transformations so that it's ready to be used by the ML job, then load it to the database.
 
 The resulted table looks like the following:
 

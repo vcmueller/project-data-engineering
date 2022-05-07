@@ -1,6 +1,6 @@
 # Visualization Information
 
-The results of the application can be visualized via the link `localhost:8080` while the application is running.
+The results of the application can be visualized via `localhost:8080` while the application is running.
 
 All pages are updated every 2 min.
 
@@ -35,4 +35,4 @@ This page shows the table created by the Machine Learning job, which is the ETL 
 
 ![MLPage](../../Images/MLPage.png?raw=true "ML Page")
 
-Here the temperature is aggregated by city by quarter, and the "Temperature Level" column is the name of the cluster assigned that the city in that quarter.
+Here the temperature is aggregated by city by quarter, and the "Temperature Level" column is the name of the cluster assigned to that city in that quarter.
