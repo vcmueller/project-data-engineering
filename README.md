@@ -42,10 +42,10 @@ In order to successfully execute the application and verify the results, the fol
 2. Go into the cloned repository folder:
     `cd project-data-engineering`
 
-3. Execute the docker-compose command below to build the docker images:
+3. Execute the following docker-compose command to build the docker images:
     `docker-compose build`
 
-4. Execute the docker-compose command below to start the containers:
+4. Execute the following docker-compose command to start the containers:
     `docker-compose up -d`
 
     (the containers execution status can be monitored via `docker ps`)
