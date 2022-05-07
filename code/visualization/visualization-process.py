@@ -116,7 +116,7 @@ def main():
     )
 
     # Configure Prefect flow
-    with Flow("etl", schedule=schedule) as flow:
+    with Flow("visualization", schedule=schedule) as flow:
         getMLResult()
         getETLResult()
         getStatus()

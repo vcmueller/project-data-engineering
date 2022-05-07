@@ -10,6 +10,7 @@ import dbconfig
 from sqlalchemy import create_engine
 import dbstatus
 
+@task(max_retries=3, retry_delay=timedelta(seconds=1))
 def createTable():
     '''
     Create the tables required by the ML process
@@ -160,13 +161,11 @@ def main():
 
     # Configure Prefect flow
     with Flow("ml", schedule=schedule) as flow:
+        createTable() # Create/Clean up database table
         data = extract()
         data = createModel(data)
         data = transform(data)
         load(data)
-
-    # Create database tables - if not already created
-    createTable()
 
     # Execute ETL flow
     flow.run(executor=LocalDaskExecutor())
