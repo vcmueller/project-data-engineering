@@ -3,12 +3,12 @@
 ## Overview
 
 The project consists of a batch-processing data application for a data-intensive machine learning application that:
-- reads data from a set of CSV files containing daily temperature data for cities around the world ([city_temperature.csv](https://www.kaggle.com/datasets/sudalairajkumar/daily-temperature-of-major-cities?select=city_temperature.csv) from Kaggle) with 2.9 million rows
-- processes the source data by aggregating temperatures to a monthly average per city
-- incrementally loads the processed data a database
-- reads the processed data and adds a label to each record indicating the temperature level of each city on each quarter by using a KMeans Machine Learning model to clusterizes the data
-- loads the clusterized data to the database every quarter
-- presents the processed and clusterized data in HTML web pages
+- reads data from a set of CSV files containing daily temperature data for cities around the world ([city_temperature.csv](https://www.kaggle.com/datasets/sudalairajkumar/daily-temperature-of-major-cities?select=city_temperature.csv) from Kaggle) with 2.9 million rows;
+- processes the source data by aggregating temperatures to a monthly average per city;
+- incrementally loads the processed data a database;
+- reads the processed data and adds a label to each record indicating the temperature level of each city on each quarter by using a KMeans Machine Learning model to clusterize the data;
+- loads the clusterized data to the database every quarter;
+- presents the processed and clusterized data in HTML web pages.
 
 
 ## Application Architecture
@@ -20,10 +20,10 @@ The application architecture is presented below:
 ### Architecture Implementation
 
 The application is implemented by deploying four docker containers:
-- ETL: Prefect is used to manage the data pipeline flow and execute the ETL tasks written in Python ([see code details here](code/etl)). This job is scheduled to incrementally add new data by running every month.
-- Database: PostgreSQL database is used with a docker named volume to persist data outside the container, with port 5432 exposed for external access.
-- ML: Prefect is used to manage the flow of extracting the processed data and running the Machine Learning model to clusterize the data, also written in Python ([see code details here](code/ml)). The process is scheduled to recreate the table every quarter.
-- Visualization: Prefect is used to manage the creation flow of the HTML pages containing the processed data from ETL and ML processes, also using Python and the Bokeh library ([see code details here](code/visualization)). Nginx service is used to make the pages created available through port 80.
+- <b>ETL</b>: Prefect is used to manage the data pipeline flow and execute the ETL tasks written in Python ([see code details here](code/etl)). This job is scheduled to incrementally add new data by running every month.
+- <b>Database</b>: PostgreSQL database is used with a docker named volume to persist data outside the container, with port 5432 exposed for external access.
+- <b>ML</b>: Prefect is used to manage the flow of extracting the processed data and running the Machine Learning model to clusterize the data, also written in Python ([see code details here](code/ml)). The process is scheduled to label the data and recreate the table every quarter.
+- <b>Visualization</b>: Prefect is used to manage the creation flow of the HTML pages containing the processed data from ETL and ML processes, also using Python and the Bokeh library ([see code details here](code/visualization)). Nginx service is used to expose the pages created through port 80.
 
 ### Containers Integration
 

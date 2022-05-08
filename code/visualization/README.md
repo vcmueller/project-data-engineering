@@ -20,6 +20,8 @@ The image below shows how the result of the complete flow looks like:
 
 The column "Last Date Loaded" contains the date of the last record loaded to the database, so subsequent executions should only load newer data.
 This page can be used as a monitoring tool as it records all job executions.
+- After the status `ETL 7/7` is displayed, the ETL Process page will display the ETL results.
+- After the status `ML 2/2` is displayed, the Machine Learning Process page will display the ML results.
 
 ## ETL Process
 
