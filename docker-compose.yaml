@@ -24,6 +24,8 @@ services:
     build:
       context: ./
       dockerfile: ./dockerfiles/etl.dockerfile
+    environment:
+      - EXECUTION_MODE=test #test or production
     restart: on-failure
     depends_on:
       - db
@@ -33,6 +35,8 @@ services:
     build: 
       context: ./
       dockerfile: ./dockerfiles/ml.dockerfile
+    environment:
+      - EXECUTION_MODE=test #test or production
     restart: on-failure
     depends_on:
       - db

@@ -9,6 +9,7 @@ from sklearn.cluster import KMeans
 import dbconfig
 from sqlalchemy import create_engine
 import dbstatus
+import os
 
 @task(max_retries=3, retry_delay=timedelta(seconds=1))
 def createTable():
@@ -152,11 +153,16 @@ def main():
     NOTE: Schedule can be toggled between test mode and production mode
     Test mode runs every 15 min while production mode runs every quarter
     '''
+
+    # Get Execution Mode
+    interval=timedelta(minutes=15) # Test mode
+    if (os.environ['EXECUTION_MODE'] == 'production'):
+        interval=timedelta(days=90)  # Production mode
+
     # Set Prefect scheduler to run every month
     schedule = IntervalSchedule(
         start_date=datetime.utcnow() + timedelta(seconds=1),
-        interval=timedelta(minutes=15) # Test mode
-        #interval=timedelta(days=90) # Production mode
+        interval=interval
     )
 
     # Configure Prefect flow
