@@ -25,6 +25,10 @@ def getMLResult(status):
     # Close database connection
     connection.close()
 
+    # Skip if no data on data frame
+    if data.empty:
+        return "Done"
+
     # Configure table to visualize
     source = ColumnDataSource(data)
     columns = [
@@ -59,6 +63,10 @@ def getETLResult(status):
     # Close database connection
     connection.close()
     
+    # Skip if no data on data frame
+    if data.empty:
+        return "Done"
+
     # Configure table to visualize
     source = ColumnDataSource(data)
     columns = [
