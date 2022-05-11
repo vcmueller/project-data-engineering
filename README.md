@@ -18,10 +18,10 @@ The application architecture is presented below:
 ### Architecture Implementation
 
 The application is implemented by deploying four docker containers:
-- <b>ETL</b>: Prefect is used to manage the data pipeline flow and execute the ETL tasks written in Python ([see code details here](code/etl)). This job is scheduled to incrementally add new data by running every month.
+- <b>ETL</b>: Prefect is used to manage the data pipeline flow and execute the ETL tasks written in Python ([see code and details here](code/etl)). This job is scheduled to incrementally add new data by running every month.
 - <b>Database</b>: PostgreSQL database is used with a docker named volume to persist data outside the container, with port 5432 exposed for external access.
-- <b>ML</b>: Prefect is used to manage the flow of extracting the processed data and running the Machine Learning model to clusterize the data, also written in Python ([see code details here](code/ml)). The process is scheduled to label the data and recreate the table every quarter.
-- <b>Visualization</b>: Prefect is used to manage the creation flow of the HTML pages containing the processed data from ETL and ML processes, also using Python and the Bokeh library ([see code details here](code/visualization)). Nginx service is used to expose the pages created through port 80.
+- <b>ML</b>: Prefect is used to manage the flow of extracting the processed data and running the Machine Learning model to clusterize the data, also written in Python ([see code and details here](code/ml)). The process is scheduled to label the data and recreate the table every quarter.
+- <b>Visualization</b>: Prefect is used to manage the creation flow of the HTML pages containing the processed data from ETL and ML processes, also using Python and the Bokeh library ([see code and details here](code/visualization)). Nginx service is used to expose the pages created through port 80.
 
 ### Containers Integration
 
@@ -33,7 +33,7 @@ The project deployment leaverages Infrastructure as Code via docker-compose with
 
 ## How to Run
 
-In order to successfully execute the application and verify the results, the follow steps should be followed:
+In order to successfully execute the application and verify the results, follow the steps below:
 1. Clone the GitHub repository by running the following command in the terminal/command line:
     ```
     git clone https://github.com/vcmueller/project-data-engineering.git
@@ -64,6 +64,8 @@ In order to successfully execute the application and verify the results, the fol
 6. The results can be verified by following the links within the webpage
 
     Note that it might take a few minutes until the jobs are completed, so it's recommended to refresh the pages for seeing updated information.
+
+    By default the ETL and ML jobs are executed in test mode (executed every 15 min). Production mode can be enabled by following the steps documented in [ETL](code/etl) and [ML](code/ml).
     
     The "Process Status" page should reflect the jobs execution details, so it can be used as a monitoring tool.
     
@@ -77,7 +79,7 @@ In order to successfully execute the application and verify the results, the fol
 ----------
 
 ## List of Available Documentation
-- [ETL Job](code/etl)
-- [ML Job](code/ml)
-- [Visualization Job](code/visualization)
+- [ETL Job Details](code/etl)
+- [ML Job Details](code/ml)
+- [Visualization Job Details](code/visualization)
 

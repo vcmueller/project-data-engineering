@@ -1,4 +1,4 @@
-# ETL Job Information
+# ETL Job Details
 
 The aim of this job is to extract the data from the source, execute a series of transformations so that it's ready to be used by the ML job, then load it to the database.
 
@@ -16,13 +16,13 @@ The resulted table looks like the following:
 
 - Temperature data is converted from Fahrenheit to Celsius.
 
-Only unloaded data is loaded to the database. The Status table is used for checking what was the last uploaded data.
+Only new data is loaded to the database. The Status table is used for checking what was the last uploaded data.
 
-In case of incomplete loads caused by failures, then the table is refreshed and all data deleted before a new full load is done.
+In case of incomplete loads caused by failures, the table is refreshed and all data deleted before a new full load is done.
 
 ## Schedule
 
-The job schedule depends on whether is it in Test Mode or Production Mode.
+The job schedule depends on whether it is in Test Mode or Production Mode.
 - Test Mode = job runs every 15 min
 - Production Mode = job runs every month
 

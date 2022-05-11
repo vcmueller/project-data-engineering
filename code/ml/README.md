@@ -1,4 +1,4 @@
-# Machine Learning Job Information
+# Machine Learning Job Details
 
 The aim of this job is to clusterize the data resulted from the ETL job by assigning each city and quarter combination to a temperature level.
 
@@ -12,13 +12,13 @@ We would expect that cities in the northern hemisphere would have a lower temper
 
 The cluster assignment is done based on the average of all temperature data collected for that city aggregated by quarter. The algorithm will re-assign and re-load all data every quarter in order to have an updated version of the clusters.
 
-This cluster information could be used in use cases where we need to identify regions with contain higher/lower temperatures, considering the time of the year, such as ice cream sales or winter clothing advertisement.
+This cluster information could be used in cases where we need to identify cities that contain higher/lower temperatures, considering the time of the year. Examples of such a use case would be ice cream sales and winter clothing advertisement.
 
 The ML job is only executed after the ETL job is completed, information that is verified by checking the status table.
 
 ## Schedule
 
-The job schedule depends on whether is it in Test Mode or Production Mode.
+The job schedule depends on whether it is in Test Mode or Production Mode.
 - Test Mode = job runs every 15 min
 - Production Mode = job runs every quarter
 
