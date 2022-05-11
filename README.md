@@ -33,16 +33,24 @@ The project deployment leaverages Infrastructure as Code via docker-compose with
 
 ## How to Run
 
+### Pre-Requisites
+- Docker
+- Docker-compose
+
+### Steps
+
 In order to successfully execute the application and verify the results, follow the steps below:
 1. Clone the GitHub repository by running the following command in the terminal/command line:
     ```
     git clone https://github.com/vcmueller/project-data-engineering.git
     ```
-    
+
 2. Go into the cloned repository folder:
     ```
     cd project-data-engineering
     ```
+
+    Note: An alternative to steps 1 and 2 is to download the source files [here](https://github.com/vcmueller/project-data-engineering/archive/refs/heads/main.zip), go into the downloaded folder and continue with Step 3 from the terminal.
 
 3. Execute the following docker-compose command to build the docker images:
     ```
